@@ -3,11 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Environments
+# Virtual Environments
 venv/
 .venv/
 env/
-.env/
 
 # Environment variables & secrets
 .env
@@ -25,3 +24,4 @@ storage/*
 .idea/
 *.swp
 .DS_Store
+Thumbs.db
