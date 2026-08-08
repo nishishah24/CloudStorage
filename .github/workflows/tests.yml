@@ -1,0 +1,57 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: cloud_user
+          POSTGRES_PASSWORD: password123
+          POSTGRES_DB: cloud_file_storage_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cloud_user -d cloud_file_storage_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      POSTGRES_USER: cloud_user
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: cloud_file_storage_test
+      POSTGRES_PORT: 5432
+      POSTGRES_HOST: 127.0.0.1
+
+      SECRET_KEY: test-secret-key
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      STORAGE_PATH: test_storage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest -v
