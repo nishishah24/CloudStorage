@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,9 +39,10 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         if self.custom_database_url:
             return self.custom_database_url
+        encoded_password = quote_plus(self.postgres_password)
         return (
             f"postgresql://{self.postgres_user}:"
-            f"{self.postgres_password}@"
+            f"{encoded_password}@"
             f"{self.postgres_host}:"
             f"{self.postgres_port}/"
             f"{self.postgres_db}"
