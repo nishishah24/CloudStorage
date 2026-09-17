@@ -10,13 +10,14 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     app_name: str = "Cloud File Storage Service"
 
-    postgres_user: str
-    postgres_password: str
-    postgres_db: str
+    postgres_user: str = "postgres"
+    postgres_password: str = ""
+    postgres_db: str = "postgres"
     postgres_port: int = 5432
     postgres_host: str = "127.0.0.1"
+    custom_database_url: str = ""
 
-    secret_key: str
+    secret_key: str = "default_secret_key_change_in_production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
@@ -35,6 +36,8 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def database_url(self) -> str:
+        if self.custom_database_url:
+            return self.custom_database_url
         return (
             f"postgresql://{self.postgres_user}:"
             f"{self.postgres_password}@"
