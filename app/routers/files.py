@@ -1,14 +1,11 @@
-from pathlib import Path
-
 from fastapi import (
     APIRouter,
     Depends,
     File,
-    HTTPException,
+    Response,
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse as FastAPIFileResponse
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
@@ -22,7 +19,7 @@ from app.schemas.file import (
 )
 from app.services.file_service import (
     delete_user_file,
-    get_owned_file,
+    download_user_file_content,
     get_user_files,
     rename_user_file,
     upload_user_file,
@@ -72,24 +69,18 @@ def download_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    file_record = get_owned_file(
+    file_bytes, file_record = download_user_file_content(
         file_id=file_id,
         current_user=current_user,
         db=db,
     )
 
-    file_path = Path(file_record.file_path)
-
-    if not file_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Stored file not found",
-        )
-
-    return FastAPIFileResponse(
-        path=file_path,
-        filename=file_record.original_name,
-        media_type=file_record.content_type,
+    return Response(
+        content=file_bytes,
+        media_type=file_record.content_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{file_record.original_name}"'
+        },
     )
 
 

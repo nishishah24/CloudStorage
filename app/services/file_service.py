@@ -1,10 +1,13 @@
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.firebase import (
+    delete_file_from_firebase,
+    download_file_bytes_from_firebase,
+    upload_file_to_firebase,
+)
 from app.core.logger import logger
 from app.exceptions.custom_exceptions import (
     FileNotFoundException,
@@ -22,10 +25,6 @@ from app.repositories.file_repository import (
 )
 
 
-STORAGE_DIR = Path(settings.storage_path)
-STORAGE_DIR.mkdir(parents=True, exist_ok=True)
-
-
 def upload_user_file(
     uploaded_file: UploadFile,
     current_user: User,
@@ -37,18 +36,21 @@ def upload_user_file(
         raise InvalidFileNameException()
 
     unique_name = f"{uuid4()}-{original_name}"
-    file_path = STORAGE_DIR / unique_name
+    blob_name = f"user_{current_user.id}/{unique_name}"
 
     file_contents = uploaded_file.file.read()
 
     try:
-        with open(file_path, "wb") as destination:
-            destination.write(file_contents)
+        upload_file_to_firebase(
+            file_bytes=file_contents,
+            blob_name=blob_name,
+            content_type=uploaded_file.content_type,
+        )
 
         file_record = FileModel(
             original_name=original_name,
             stored_name=unique_name,
-            file_path=str(file_path),
+            file_path=blob_name,
             content_type=uploaded_file.content_type,
             size=len(file_contents),
             owner_id=current_user.id,
@@ -60,7 +62,7 @@ def upload_user_file(
         )
 
         logger.info(
-            "File uploaded successfully. "
+            "File uploaded successfully to Firebase. "
             "user_id=%s file_id=%s name=%s size=%s",
             current_user.id,
             saved_file.id,
@@ -73,8 +75,10 @@ def upload_user_file(
     except Exception:
         db.rollback()
 
-        if file_path.exists():
-            file_path.unlink()
+        try:
+            delete_file_from_firebase(blob_name)
+        except Exception:
+            pass
 
         logger.exception(
             "File upload failed. user_id=%s name=%s",
@@ -129,6 +133,21 @@ def get_owned_file(
     return file_record
 
 
+def download_user_file_content(
+    file_id: int,
+    current_user: User,
+    db: Session,
+) -> tuple[bytes, FileModel]:
+    file_record = get_owned_file(
+        file_id=file_id,
+        current_user=current_user,
+        db=db,
+    )
+
+    file_bytes = download_file_bytes_from_firebase(file_record.file_path)
+    return file_bytes, file_record
+
+
 def rename_user_file(
     file_id: int,
     new_name: str,
@@ -177,12 +196,11 @@ def delete_user_file(
         db=db,
     )
 
-    file_path = Path(file_record.file_path)
+    blob_name = file_record.file_path
     original_name = file_record.original_name
 
     try:
-        if file_path.exists():
-            file_path.unlink()
+        delete_file_from_firebase(blob_name)
 
         delete_file_record(
             db=db,
@@ -190,7 +208,7 @@ def delete_user_file(
         )
 
         logger.info(
-            "File deleted successfully. "
+            "File deleted successfully from Firebase. "
             "user_id=%s file_id=%s name=%s",
             current_user.id,
             file_id,

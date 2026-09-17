@@ -10,6 +10,9 @@ env/
 
 # Environment variables & secrets
 .env
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+*.json
 
 # Storage contents (keep directory structure)
 storage/*

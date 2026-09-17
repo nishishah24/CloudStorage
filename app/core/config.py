@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 
     storage_path: str = "storage"
+    firebase_storage_bucket: str = ""
+    firebase_credentials_path: str = ""
+    firebase_credentials_json: str = ""
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
