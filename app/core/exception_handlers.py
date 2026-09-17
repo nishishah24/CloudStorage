@@ -76,3 +76,17 @@ def register_exception_handlers(app: FastAPI):
                 "error": exc.message,
             },
         )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(
+        request: Request,
+        exc: Exception,
+    ):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(exc),
+                "type": type(exc).__name__,
+            },
+        )
